@@ -102,8 +102,5 @@
     "uuid": "latest",
     "ws": "latest",
     "xml2js": "latest"
-  },
-  "engines": {
-    "node": ">=18.18.0"
   }
 }
