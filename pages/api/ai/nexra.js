@@ -239,7 +239,7 @@ export default async function handler(req, res) {
           error: `Invalid action: ${action}`
         });
     }
-    res.status(200).json({
+    return res.status(200).json({
       result: result
     });
   } catch (error) {

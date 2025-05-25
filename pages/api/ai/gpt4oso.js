@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       });
     }
     const rawData = response.data;
-    res.status(200).json({
+    return res.status(200).json({
       result: rawData
     });
   } catch (error) {

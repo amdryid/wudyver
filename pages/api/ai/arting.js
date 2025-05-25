@@ -152,14 +152,14 @@ export default async function handler(req, res) {
         const audioBuffer = await arting.download(id);
         res.setHeader("Content-Type", "audio/wav");
         res.setHeader("Content-Disposition", `attachment; filename="${id}.wav"`);
-        res.status(200).end(Buffer.from(audioBuffer));
+        return res.status(200).end(Buffer.from(audioBuffer));
         break;
       default:
         return res.status(400).json({
           error: "Invalid action specified"
         });
     }
-    res.status(200).json({
+    return res.status(200).json({
       result: result
     });
   } catch (error) {

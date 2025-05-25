@@ -6,97 +6,108 @@ import {
   fileTypeFromBuffer
 } from "file-type";
 import fetch from "node-fetch";
-const uploadFaceSwap = async mediaBuffer => {
-  try {
-    console.log("Starting uploadFaceSwap...");
-    const fileType = await fileTypeFromBuffer(mediaBuffer);
-    const mimeType = fileType ? fileType.mime : "image/jpeg";
-    const fileName = `img.${fileType ? fileType.ext : "jpeg"}`;
-    const formData = new FormData();
-    formData.append("file", new Blob([mediaBuffer], {
-      type: mimeType
-    }), fileName);
-    const response = await fetch("https://aifaceswap.io/api/upload_img", {
-      method: "POST",
-      headers: {
-        Accept: "*/*",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
-        Referer: "https://aifaceswap.io/"
-      },
-      body: formData
-    });
-    const data = await response.json();
-    if (data.code !== 200) throw new Error("Failed to upload image.");
-    console.log("Image uploaded successfully:", "aifaceswap/upload_res/" + data.data);
-    return data.data;
-  } catch (error) {
-    console.error("Error in uploadFaceSwap:", error);
-    throw error;
+class FaceSwap {
+  constructor(sourceUrl, faceUrl) {
+    this.sourceUrl = sourceUrl;
+    this.faceUrl = faceUrl;
+    this.headers = {
+      Accept: "*/*",
+      "X-Requested-With": "XMLHttpRequest",
+      "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
+      Referer: "https://aifaceswap.io/"
+    };
   }
-};
-const generateFace = async (source_image, face_image) => {
-  try {
-    console.log("Starting generateFace...");
-    const response = await fetch("https://aifaceswap.io/api/generate_face", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json, text/javascript, */*; q=0.01",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
-        Referer: "https://aifaceswap.io/"
-      },
-      body: JSON.stringify({
-        source_image: source_image,
-        face_image: face_image
-      })
-    });
-    const data = await response.json();
-    if (data.code !== 200) throw new Error("Failed to initiate face swap task.");
-    const taskId = data.data.task_id;
-    console.log("Face swap task initiated with ID:", taskId);
-    let resultImage;
-    let attempts = 0;
-    const maxAttempts = 15;
-    do {
-      try {
-        console.log("Checking task status... Attempt:", attempts + 1);
-        const statusResponse = await fetch("https://aifaceswap.io/api/check_status", {
+  async fetchBuffer(url) {
+    try {
+      console.log(`Fetching image from ${url}`);
+      const res = await fetch(url);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      console.log(`Fetched ${buffer.length} bytes`);
+      return buffer;
+    } catch (err) {
+      console.error("Error fetching image:", err);
+      throw err;
+    }
+  }
+  async upload(buffer) {
+    try {
+      const fileType = await fileTypeFromBuffer(buffer);
+      const mimeType = fileType?.mime || "image/jpeg";
+      const fileName = `img.${fileType?.ext || "jpeg"}`;
+      const formData = new FormData();
+      formData.append("file", new Blob([buffer], {
+        type: mimeType
+      }), fileName);
+      console.log("Uploading image...");
+      const res = await fetch("https://aifaceswap.io/api/upload_img", {
+        method: "POST",
+        headers: this.headers,
+        body: formData
+      });
+      const json = await res.json();
+      if (json.code !== 200) throw new Error("Upload failed.");
+      console.log("Upload success:", json.data);
+      return json.data;
+    } catch (err) {
+      console.error("Error uploading image:", err);
+      throw err;
+    }
+  }
+  async generate() {
+    try {
+      const sourceBuffer = await this.fetchBuffer(this.sourceUrl);
+      const faceBuffer = await this.fetchBuffer(this.faceUrl);
+      const sourceImage = await this.upload(sourceBuffer);
+      const faceImage = await this.upload(faceBuffer);
+      console.log("Requesting face generation...");
+      const res = await fetch("https://aifaceswap.io/api/generate_face", {
+        method: "POST",
+        headers: {
+          ...this.headers,
+          "Content-Type": "application/json",
+          Accept: "application/json, text/javascript, */*; q=0.01"
+        },
+        body: JSON.stringify({
+          source_image: sourceImage,
+          face_image: faceImage
+        })
+      });
+      const json = await res.json();
+      if (json.code !== 200) throw new Error("Failed to initiate generation.");
+      const taskId = json.data.task_id;
+      console.log("Task started with ID:", taskId);
+      const start = Date.now();
+      while (true) {
+        if (Date.now() - start > 6e4) throw new Error("Timeout: Task took too long.");
+        await new Promise(res => setTimeout(res, 5e3));
+        console.log("Polling task status...");
+        const pollRes = await fetch("https://aifaceswap.io/api/check_status", {
           method: "POST",
           headers: {
+            ...this.headers,
             "Content-Type": "application/json",
-            Accept: "application/json, text/javascript, */*; q=0.01",
-            "X-Requested-With": "XMLHttpRequest",
-            "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36",
-            Referer: "https://aifaceswap.io/"
+            Accept: "application/json, text/javascript, */*; q=0.01"
           },
           body: JSON.stringify({
             task_id: taskId
           })
         });
-        const statusData = await statusResponse.json();
-        if (statusData.code !== 200) throw new Error("Failed to check task status.");
-        resultImage = statusData.data.result_image;
-        if (!resultImage) {
-          if (++attempts >= maxAttempts) {
-            throw new Error("Maximum attempts reached. Result image not available.");
-          }
-          console.log("Result image not available yet. Waiting...");
-          await new Promise(resolve => setTimeout(resolve, 5e3));
+        const pollJson = await pollRes.json();
+        if (pollJson.code !== 200) throw new Error("Failed to check status.");
+        const resultImage = pollJson.data.result_image;
+        if (resultImage) {
+          const finalUrl = "https://art-global.yimeta.ai/" + resultImage;
+          console.log("Result ready:", finalUrl);
+          return finalUrl;
         }
-      } catch (statusError) {
-        console.error("Error in status check:", statusError);
-        throw statusError;
+        console.log("Result not ready yet...");
       }
-    } while (!resultImage);
-    console.log("Result image obtained:", "https://art-global.yimeta.ai/" + resultImage);
-    return "https://art-global.yimeta.ai/" + resultImage;
-  } catch (error) {
-    console.error("Error in generateFace:", error);
-    throw error;
+    } catch (err) {
+      console.error("Error in generate process:", err);
+      throw err;
+    }
   }
-};
+}
 export default async function handler(req, res) {
   const {
     sourceUrl,
@@ -108,25 +119,14 @@ export default async function handler(req, res) {
     });
   }
   try {
-    console.log("Fetching source image...");
-    const sourceResponse = await fetch(sourceUrl);
-    const sourceBuffer = Buffer.from(await sourceResponse.arrayBuffer());
-    console.log("Uploading source image...");
-    const sourceImage = await uploadFaceSwap(sourceBuffer);
-    console.log("Fetching face image...");
-    const faceResponse = await fetch(faceUrl);
-    const faceBuffer = Buffer.from(await faceResponse.arrayBuffer());
-    console.log("Uploading face image...");
-    const faceImage = await uploadFaceSwap(faceBuffer);
-    console.log("Generating face swap...");
-    const resultImageUrl = await generateFace(sourceImage, faceImage);
-    res.status(200).json({
-      result: resultImageUrl
+    const faceSwap = new FaceSwap(sourceUrl, faceUrl);
+    const result = await faceSwap.generate();
+    return res.status(200).json({
+      result: result
     });
-  } catch (error) {
-    console.error("Error during face swap process:", error);
+  } catch (err) {
     res.status(500).json({
-      error: "An error occurred during the face swap process."
+      error: "Face swap process failed."
     });
   }
 }

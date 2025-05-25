@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   try {
     const imageBuffer = await Draw(prompt);
     res.setHeader("Content-Type", "image/jpeg");
-    res.status(200).send(imageBuffer);
+    return res.status(200).send(imageBuffer);
   } catch (error) {
     res.status(500).json({
       error: error.message

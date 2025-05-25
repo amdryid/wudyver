@@ -295,7 +295,7 @@ export default async function handler(req, res) {
       default:
         throw new Error("Invalid action");
     }
-    res.status(200).json({
+    return res.status(200).json({
       result: data
     });
   } catch (error) {

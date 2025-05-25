@@ -1,251 +1,125 @@
 import axios from "axios";
-const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0";
-const API = {
-  isExist: "https://api.deepai.org/get_user_login_type",
-  register: "https://api.deepai.org/daily-time-sync/registration/",
-  login: "https://api.deepai.org/daily-time-sync/login/",
-  user: "https://api.deepai.org/daily-time-sync/user/",
-  addCharacter: "https://api.deepai.org/create_character",
-  characterList: "https://api.deepai.org/get_character_row/0/",
-  chat: "https://api.deepai.org/hacking_is_a_serious_crime",
-  text2img: "https://api.deepai.org/api/",
-  style: "https://deepai.org/styles",
-  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
-};
+import {
+  FormData
+} from "formdata-node";
+import crypto from "crypto";
 class DeepAI {
   constructor() {
-    this.email = null;
-    this.password = null;
-    this.csrftoken = null;
-    this.sessionid = null;
+    this.baseURL = "https://api.deepai.org";
+    this.userAgent = this.genUA();
   }
-  async isExist({
-    email
-  }) {
+  genUA() {
+    const android = [10, 11, 12, 13, 14][Math.floor(Math.random() * 5)];
+    const letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" [Math.floor(Math.random() * 26)];
+    const chrome = [120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131][Math.floor(Math.random() * 12)];
+    return `Mozilla/5.0 (Linux; Android ${android}; ${letter}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chrome}.0.0.0 Mobile Safari/537.36`;
+  }
+  hashFunction(input) {
+    return crypto.createHash("md5").update(input).digest("hex").split("").reverse().join("");
+  }
+  genKey() {
+    const randomStr = Math.round(Math.random() * 1e11) + "";
+    const secret = "hackers_become_a_little_stinkier_every_time_they_hack";
+    const hash = this.hashFunction(this.userAgent + this.hashFunction(this.userAgent + this.hashFunction(this.userAgent + randomStr + secret)));
+    return "tryit-" + randomStr + "-" + hash;
+  }
+  async request(endpoint, data, extraHeaders = {}) {
     try {
-      const {
-        data
-      } = await axios.post(API.isExist, {
-        email: email
-      }, {
-        headers: {
-          "User-Agent": USER_AGENT
-        }
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, typeof value === "object" ? JSON.stringify(value) : value);
       });
-      return data;
-    } catch (err) {
-      return {
-        error: err.message
+      const ip = crypto.randomBytes(4).map(b => b % 256).join(".");
+      const headers = {
+        accept: "*/*",
+        "accept-language": "en-US,en;q=0.9",
+        "api-key": this.genKey(),
+        origin: this.baseURL,
+        referer: `${this.baseURL}/`,
+        "user-agent": this.userAgent,
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "x-forwarded-for": ip,
+        "x-real-ip": ip,
+        "x-request-id": crypto.randomBytes(8).toString("hex"),
+        ...extraHeaders,
+        ...formData.headers
       };
-    }
-  }
-  init({
-    email,
-    password
-  }) {
-    this.email = email;
-    this.password = password;
-  }
-  async register() {
-    try {
-      const {
-        data
-      } = await axios.post(API.register, {
-        email: this.email,
-        username: this.email,
-        password1: this.password,
-        password2: this.password
-      }, {
-        headers: {
-          "User-Agent": API.userAgent
-        }
+      const response = await axios.post(`${this.baseURL}${endpoint}`, formData, {
+        headers: headers
       });
-      return data;
-    } catch (err) {
-      return {
-        error: err.message
-      };
-    }
-  }
-  async login() {
-    try {
-      const {
-        headers
-      } = await axios.post(API.login, {
-        email: this.email,
-        password: this.password
-      }, {
-        headers: {
-          "User-Agent": API.userAgent
-        }
-      });
-      const cookies = headers["set-cookie"].map(v => v.split(/=|;/g)[1]).filter(Boolean);
-      this.csrftoken = cookies[0];
-      this.sessionid = cookies[1];
-      return await this.isLogin();
-    } catch (err) {
-      return {
-        error: err.message
-      };
-    }
-  }
-  async isLogin() {
-    try {
-      const {
-        data
-      } = await axios.get(API.user, {
-        headers: {
-          "User-Agent": API.userAgent,
-          Cookie: `csrftoken=${this.csrftoken}; sessionid=${this.sessionid}`
-        }
-      });
-      return data;
-    } catch (err) {
-      return {
-        error: err.message
-      };
-    }
-  }
-  async text2img({
-    style,
-    prompt,
-    image_generator_version,
-    use_old_model,
-    preference,
-    genius_preference,
-    negative_prompt,
-    width = "512",
-    height = "512"
-  }) {
-    try {
-      const myrandomstr = Math.floor(Math.random() * 1e12).toString();
-      const tryitApiKey = `tryit-${myrandomstr}-${this.hashString(API.userAgent + myrandomstr + "suditya_is_a_smelly_hacker")}`;
-      const {
-        data
-      } = await axios.post(`${API.text2img}${style}`, {
-        text: prompt,
-        image_generator_version: image_generator_version,
-        use_old_model: use_old_model,
-        [preference]: true,
-        genius_preference: genius_preference,
-        negative_prompt: negative_prompt,
-        width: width,
-        height: height
-      }, {
-        headers: {
-          "api-key": tryitApiKey,
-          "User-Agent": API.userAgent
-        }
-      });
-      return data;
-    } catch (err) {
-      return {
-        error: err.message
-      };
-    }
-  }
-  async addCharacter({
-    name,
-    description,
-    isPublic
-  }) {
-    try {
-      const {
-        data
-      } = await axios.post(API.addCharacter, {
-        char_info: JSON.stringify({
-          name: name,
-          description: description,
-          isPublic: isPublic
-        })
-      }, {
-        headers: {
-          Cookie: `csrftoken=${this.csrftoken}; sessionId=${this.sessionid}`,
-          "User-Agent": API.userAgent
-        }
-      });
-      return data;
-    } catch (err) {
-      return {
-        error: err.message
-      };
-    }
-  }
-  async characterList({
-    keyword = "null"
-  }) {
-    try {
-      const {
-        data
-      } = await axios.get(`${API.characterList}${keyword}/All`, {
-        headers: {
-          Cookie: `csrftoken=${this.csrftoken}; sessionId=${this.sessionid}`,
-          "User-Agent": API.userAgent
-        }
-      });
-      return data;
-    } catch (err) {
-      return {
-        error: err.message
-      };
+      return response.data;
+    } catch (error) {
+      console.error(`Error in request to ${endpoint}:`, error);
+      throw error;
     }
   }
   async chat({
-    chat_style,
-    chatHistory
+    prompt,
+    messages = [],
+    chatStyle = "chat",
+    model = "standard"
   }) {
     try {
-      const myrandomstr = Math.floor(Math.random() * 1e12).toString();
-      const tryitApiKey = `tryit-${myrandomstr}-${this.hashString(API.userAgent + myrandomstr + "suditya_is_a_smelly_hacker")}`;
-      const {
-        data
-      } = await axios.post(API.chat, {
-        chat_style: chat_style,
-        chatHistory: JSON.stringify(chatHistory)
-      }, {
-        headers: {
-          "Api-Key": tryitApiKey,
-          "User-Agent": API.userAgent
-        }
+      const result = await this.request("/hacking_is_a_serious_crime", {
+        chat_style: chatStyle,
+        chatHistory: messages.length ? messages : [{
+          role: "user",
+          content: prompt
+        }],
+        model: model,
+        hacker_is_stinky: "very_stinky"
       });
       return {
-        role: "assistant",
-        content: data
+        result: result
       };
-    } catch (err) {
-      return {
-        error: err.message
-      };
+    } catch (error) {
+      console.error("Error in chat:", error);
+      throw error;
     }
   }
-  async styles() {
+  async image({
+    prompt: text,
+    version = "hd"
+  }) {
     try {
-      const {
-        data
-      } = await axios.get(API.style);
-      const doc = new DOMParser().parseFromString(data, "text/html");
-      const styles = Array.from(doc.querySelectorAll(".style-generator-model"));
-      return styles.map(el => {
-        const banner = el.querySelector("img")?.src || "";
-        return {
-          banner: banner,
-          name: banner.split(/\/|\.jpg/g).slice(-2)[0].replace(/\-thumb$/, "")
-        };
+      return await this.request("/api/text2img", {
+        text: text,
+        image_generator_version: version
       });
-    } catch (err) {
-      return {
-        error: err.message
-      };
+    } catch (error) {
+      console.error("Error in image:", error);
+      throw error;
     }
   }
-  hashString(input) {
-    let hash = 0;
-    if (input.length === 0) return hash;
-    for (let i = 0; i < input.length; i++) {
-      hash = (hash << 5) - hash + input.charCodeAt(i);
-      hash &= hash;
+  async video({
+    prompt,
+    dimensions = "default"
+  }) {
+    try {
+      return await this.request("/generate_video", {
+        textPrompt: prompt,
+        dimensions: dimensions
+      });
+    } catch (error) {
+      console.error("Error in video:", error);
+      throw error;
     }
-    return hash.toString(16);
+  }
+  async audio({
+    prompt: text
+  }) {
+    try {
+      return await this.request("/audio_response", {
+        text: text
+      }, {
+        "content-type": "application/json"
+      });
+    } catch (error) {
+      console.error("Error in audio:", error);
+      throw error;
+    }
   }
 }
 export default async function handler(req, res) {
@@ -253,48 +127,59 @@ export default async function handler(req, res) {
     action,
     ...params
   } = req.method === "GET" ? req.query : req.body;
+  if (!action) {
+    return res.status(400).json({
+      error: "Missing required field: action",
+      required: {
+        action: "chat | image | video | audio"
+      }
+    });
+  }
   const deepai = new DeepAI();
   try {
     let result;
     switch (action) {
-      case "isExist":
-        result = await deepai.isExist(params);
-        break;
-      case "register":
-        deepai.init(params);
-        result = await deepai.register();
-        break;
-      case "login":
-        deepai.init(params);
-        result = await deepai.login();
-        break;
-      case "isLogin":
-        result = await deepai.isLogin();
-        break;
-      case "addCharacter":
-        result = await deepai.addCharacter(params);
-        break;
-      case "characterList":
-        result = await deepai.characterList(params);
-        break;
       case "chat":
-        result = await deepai.chat(params);
+        if (!params.prompt) {
+          return res.status(400).json({
+            error: `Missing required field: prompt (required for ${action})`
+          });
+        }
+        result = await deepai[action](params);
         break;
-      case "text2img":
-        result = await deepai.text2img(params);
+      case "image":
+        if (!params.prompt) {
+          return res.status(400).json({
+            error: `Missing required field: prompt (required for ${action})`
+          });
+        }
+        result = await deepai[action](params);
         break;
-      case "styles":
-        result = await deepai.styles();
+      case "video":
+        if (!params.prompt) {
+          return res.status(400).json({
+            error: `Missing required field: prompt (required for ${action})`
+          });
+        }
+        result = await deepai[action](params);
+        break;
+      case "audio":
+        if (!params.prompt) {
+          return res.status(400).json({
+            error: `Missing required field: prompt (required for ${action})`
+          });
+        }
+        result = await deepai[action](params);
         break;
       default:
         return res.status(400).json({
-          error: "Aksi tidak valid"
+          error: `Invalid action: ${action}. Allowed: chat | image | video | audio`
         });
     }
-    res.status(200).json(result);
-  } catch (err) {
-    res.status(500).json({
-      error: err.message
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).json({
+      error: `Processing error: ${error.message}`
     });
   }
 }
