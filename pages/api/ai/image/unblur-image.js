@@ -28,8 +28,8 @@ class UnblurAI {
       } = await axios.get(imageURL, {
         responseType: "arraybuffer",
         headers: {
-          "User-Agent": "Postify/1.0.0",
-          Accept: "image/*"
+          "user-agent": "Postify/1.0.0",
+          accept: "image/*"
         },
         httpsAgent: new https.Agent({
           rejectUnauthorized: false,

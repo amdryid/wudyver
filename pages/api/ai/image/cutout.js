@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   try {
     const cutout = new Cutout();
     const taskData = await cutout.generate(prompt || "A beautiful young woman", style || "Realistic Anime", quantity || 3, width || 540, height || 810);
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: taskData
     });

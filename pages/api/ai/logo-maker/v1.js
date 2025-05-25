@@ -1,4 +1,5 @@
 import axios from "axios";
+import apiConfig from "@/configs/apiConfig";
 class AICreate {
   constructor() {
     this.baseUrl = "https://aicreate.com/wp-admin/admin-ajax.php";
@@ -75,7 +76,7 @@ class AICreate {
     }
   }
   async convertHtmlToImageUrl(htmlContent, apiVersion) {
-    const html2imgUrl = `https://api.malik-jmk.web.id/api/tools/html2img/${apiVersion}`;
+    const html2imgUrl = `https://${apiConfig.DOMAIN_URL}/api/tools/html2img/${apiVersion}`;
     try {
       const response = await axios.post(html2imgUrl, {
         html: htmlContent

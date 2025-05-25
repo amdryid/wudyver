@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     });
     if (!response.ok) throw new Error(`API Error: ${response.status}`);
     const responseText = await response.text();
-    res.status(200).json(responseText);
+    return res.status(200).json(responseText);
   } catch (error) {
     res.status(500).send("Failed to fetch from Zaiwen API");
   }
