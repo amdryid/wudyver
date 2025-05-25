@@ -102,8 +102,6 @@
     "uuid": "latest",
     "ws": "latest",
     "xml2js": "latest",
-
-    // Ajouts depuis ta deuxième liste :
     "@fullcalendar/core": "^6.1.11",
     "@fullcalendar/daygrid": "^6.1.11",
     "@fullcalendar/interaction": "^6.1.11",
